@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#eef1f4">
+<title>Schnittdaten CNC</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root{
+  --bg:#eef1f4; --card:#ffffff; --line:#d7dde3; --line2:#e7ebef;
+  --ink:#171a1e; --ink2:#5a636c; --ink3:#8b949e;
+  --acc:#f25c05; --acc-d:#c64a04; --acc-bg:#fff1e8;
+  --ok:#1f8f4e; --warn:#d97706; --err:#d61f2b; --err-bg:#fde9ea;
+  --readout:#10141a; --readout-ink:#f4f6f8;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--sans);
+  font-size:15px; line-height:1.4;
+  padding:0 0 env(safe-area-inset-bottom);
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:860px;margin:0 auto;padding:16px 14px 40px}
+
+/* Header */
+header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:6px 2px 18px}
+.brand{display:flex;align-items:center;gap:11px}
+.logo{
+  width:34px;height:34px;border-radius:8px;flex:0 0 auto;
+  background:var(--readout);display:grid;place-items:center;
+}
+.logo svg{width:22px;height:22px}
+h1{font-size:17px;font-weight:650;letter-spacing:-.2px;margin:0;line-height:1.1}
+.sub{font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.3px;margin-top:1px}
+.ver{font-family:var(--mono);font-size:11px;color:var(--ink2);background:var(--card);
+  border:1px solid var(--line);border-radius:6px;padding:3px 8px;white-space:nowrap}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 14px;margin-bottom:14px}
+.card h2{font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--ink3);margin:0 0 13px;font-family:var(--mono)}
+
+/* Form grid */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.full{grid-column:1/-1}
+.field label{display:block;font-size:12px;color:var(--ink2);margin:0 0 5px;font-weight:550}
+select,input[type=number]{
+  width:100%;font-family:var(--sans);font-size:15px;color:var(--ink);
+  background:var(--bg);border:1px solid var(--line);border-radius:9px;
+  padding:10px 11px;appearance:none;-webkit-appearance:none;
+}
+input[type=number]{font-family:var(--mono);font-weight:600}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a636c' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer}
+select:focus,input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-bg)}
+
+/* Segmented + toggle */
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:transparent;font-family:var(--sans);font-size:13.5px;
+  font-weight:600;color:var(--ink2);padding:8px 4px;border-radius:7px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--card);color:var(--acc);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.toggle{display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 12px;cursor:pointer}
+.toggle span{font-size:13.5px;font-weight:600;color:var(--ink)}
+.sw{width:42px;height:24px;border-radius:13px;background:var(--line);position:relative;flex:0 0 auto;transition:background .15s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.toggle[aria-pressed=true] .sw{background:var(--acc)}
+.toggle[aria-pressed=true] .sw::after{transform:translateX(18px)}
+
+.hidden{display:none!important}
+
+/* Readout */
+.readout{background:var(--readout);border-radius:14px;padding:16px 14px;color:var(--readout-ink);margin-bottom:14px}
+.readout .rh{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.readout .rh span{font-family:var(--mono);font-size:11px;letter-spacing:1px;color:#7a8694;text-transform:uppercase}
+.rmode{font-family:var(--mono);font-size:11px;color:var(--acc);border:1px solid #3a2418;background:#1d1410;
+  padding:3px 9px;border-radius:6px}
+.mains{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px}
+.main{background:#171d25;border:1px solid #232b35;border-radius:11px;padding:13px 13px 11px}
+.main .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.8px;color:#7a8694;text-transform:uppercase}
+.main .v{font-family:var(--mono);font-size:30px;font-weight:680;line-height:1;margin-top:7px;letter-spacing:-.5px;
+  font-variant-numeric:tabular-nums}
+.main .u{font-family:var(--mono);font-size:12px;color:#8a96a4;margin-left:4px;font-weight:400}
+.subrow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sub2{background:#171d25;border:1px solid #232b35;border-radius:10px;padding:10px 11px}
+.sub2 .k{font-family:var(--mono);font-size:10px;letter-spacing:.6px;color:#7a8694;text-transform:uppercase}
+.sub2 .v{font-family:var(--mono);font-size:17px;font-weight:640;margin-top:5px;font-variant-numeric:tabular-nums}
+.sub2 .u{font-size:11px;color:#8a96a4;font-weight:400}
+
+/* Power bar */
+.power{margin-top:12px}
+.power .plab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.6px;color:#7a8694;text-transform:uppercase;margin-bottom:6px}
+.power .plab b{color:var(--readout-ink);font-weight:640}
+.bar{height:8px;border-radius:5px;background:#232b35;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);border-radius:5px;transition:width .2s,background .2s}
+
+/* Warnings */
+.warns{margin-bottom:14px}
+.warn-item{display:flex;gap:9px;background:var(--err-bg);border:1px solid #f3c2c6;
+  border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:13px;color:#8a1620;line-height:1.35}
+.warn-item.soft{background:#fff7ea;border-color:#f3dcb0;color:#8a5a06}
+.warn-item svg{flex:0 0 auto;margin-top:1px}
+
+.note{font-size:11.5px;color:var(--ink3);line-height:1.45;margin:4px 2px 0}
+.foot{text-align:center;font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:22px}
+.foot b{color:var(--ink2);font-weight:600}
+
+@media(max-width:430px){
+  .main .v{font-size:26px}
+  .subrow{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="8.2" stroke="#f25c05" stroke-width="1.6"/>
+          <circle cx="12" cy="12" r="2.3" fill="#f25c05"/>
+          <path d="M12 3.8V1M12 23v-2.8M3.8 12H1M23 12h-2.8M6.2 6.2 4.3 4.3M19.7 19.7l-1.9-1.9M17.8 6.2l1.9-1.9M4.3 19.7l1.9-1.9" stroke="#f4f6f8" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Schnittdaten CNC</h1>
+        <div class="sub">FEED &amp; SPEED CALCULATOR</div>
+      </div>
+    </div>
+    <div class="ver" id="ver">v1.0.0</div>
+  </header>
+
+  <!-- READOUT -->
+  <div class="readout" id="readout">
+    <div class="rh"><span>Ergebnis</span><div class="rmode" id="rmode">Schruppen</div></div>
+    <div class="mains">
+      <div class="main"><div class="k">Drehzahl n</div><div class="v" id="o_n">–</div></div>
+      <div class="main"><div class="k">Vorschub vf</div><div class="v" id="o_vf">–</div></div>
+    </div>
+    <div class="subrow" id="subrow">
+      <div class="sub2"><div class="k" id="k_vc">vc</div><div class="v" id="o_vc">–</div></div>
+      <div class="sub2"><div class="k" id="k_fz">fz</div><div class="v" id="o_fz">–</div></div>
+      <div class="sub2"><div class="k">MRR</div><div class="v" id="o_mrr">–</div></div>
+    </div>
+    <div class="subrow" id="subrow2" style="margin-top:10px">
+      <div class="sub2"><div class="k">Zustellung ap</div><div class="v" id="o_ap">–</div></div>
+      <div class="sub2"><div class="k">Zustellung ae</div><div class="v" id="o_ae">–</div></div>
+      <div class="sub2"><div class="k">Schnittleistung</div><div class="v" id="o_pc">–</div></div>
+    </div>
+    <div class="power" id="powerWrap">
+      <div class="plab"><span>Spindelauslastung</span><b id="o_util">–</b></div>
+      <div class="bar"><i id="bar" style="width:0%"></i></div>
+    </div>
+  </div>
+
+  <!-- WARNINGS -->
+  <div class="warns" id="warns"></div>
+
+  <!-- INPUTS -->
+  <div class="card">
+    <h2>Maschine &amp; Werkzeug</h2>
+    <div class="grid">
+      <div class="field full">
+        <label for="machine">Maschine</label>
+        <select id="machine"></select>
+      </div>
+      <div class="field full">
+        <label for="tooltype">Werkzeugtyp</label>
+        <select id="tooltype"></select>
+      </div>
+      <div class="field">
+        <label for="toolmat">Schneidstoff</label>
+        <select id="toolmat"></select>
+      </div>
+      <div class="field" id="zWrap">
+        <label for="z">Zähne / Schneiden</label>
+        <input id="z" type="number" min="1" max="12" step="1" value="2" inputmode="numeric">
+      </div>
+      <div class="field full">
+        <label for="d" id="dlab">Durchmesser (mm)</label>
+        <input id="d" type="number" min="0.1" max="50" step="0.1" value="6" inputmode="decimal">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Material &amp; Strategie</h2>
+    <div class="grid">
+      <div class="field full">
+        <label for="material">Werkstoff</label>
+        <select id="material"></select>
+      </div>
+      <div class="field full" id="finishWrap">
+        <label>Bearbeitung</label>
+        <div class="seg" id="finishSeg">
+          <button type="button" data-v="rough" aria-pressed="true">Schruppen</button>
+          <button type="button" data-v="finish" aria-pressed="false">Schlichten</button>
+        </div>
+      </div>
+      <div class="field full">
+        <label>Kühlung / Schmierung</label>
+        <div class="toggle" id="mmsToggle" role="button" aria-pressed="true" tabindex="0">
+          <span>Minimalmengenschmierung (MMS)</span>
+          <div class="sw"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Richtwerte für VHM-beschichtete Werkzeuge bei vorhandener Kühlung. ap/ae sind Startzustellungen — an Werkzeug, Auskragung und Spindelsteifigkeit anpassen. Standzeit, Schwingungen und Spanbild im Erstschnitt prüfen.</p>
+  </div>
+
+  <div class="foot">SCHNITTDATEN CNC · <b>by MeltingHero</b> · <span id="vfoot">v1.0.0</span></div>
+</div>
+
+<script>
+"use strict";
+const VERSION="1.0.0";
+document.getElementById("ver").textContent="v"+VERSION;
+document.getElementById("vfoot").textContent="v"+VERSION;
+
+/* ---------- Daten ---------- */
+const MATERIALS = {
+  alu_knet:   { vc:400, fz:0.05,  fdrill:0.020, kc:750,  label:"Aluminium Knetlegierung (AlMg, AlCuMg)" },
+  alu_guss:   { vc:250, fz:0.040, fdrill:0.015, kc:850,  label:"Aluminium Guss (AlSi)" },
+  messing:    { vc:250, fz:0.050, fdrill:0.015, kc:700,  label:"Messing" },
+  kupfer:     { vc:150, fz:0.040, fdrill:0.012, kc:900,  label:"Kupfer" },
+  stahl_weich:{ vc:160, fz:0.040, fdrill:0.012, kc:2000, label:"Stahl unlegiert (S235, C45 weich)" },
+  stahl_verg: { vc:110, fz:0.030, fdrill:0.010, kc:2200, label:"Stahl vergütet (42CrMo4)" },
+  stahl_geh:  { vc:60,  fz:0.020, fdrill:0.006, kc:3000, label:"Werkzeugstahl gehärtet (>50 HRC)" },
+  edel_v2a:   { vc:100, fz:0.030, fdrill:0.008, kc:2400, label:"Edelstahl V2A (1.4301)" },
+  edel_v4a:   { vc:80,  fz:0.025, fdrill:0.007, kc:2600, label:"Edelstahl V4A (1.4571)" },
+  grauguss:   { vc:120, fz:0.050, fdrill:0.015, kc:1400, label:"Grauguss (GG)" },
+  titan:      { vc:45,  fz:0.030, fdrill:0.008, kc:1400, label:"Titan (Ti6Al4V)" },
+  kunststoff: { vc:500, fz:0.060, fdrill:0.030, kc:250,  label:"Kunststoff (POM, PA, PMMA)" },
+  faser:      { vc:150, fz:0.040, fdrill:0.020, kc:600,  label:"GFK / CFK" },
+};
+const TOOLMAT = {
+  vhm_coat:{ f:1.00, label:"VHM beschichtet" },
+  vhm:     { f:0.70, label:"VHM unbeschichtet" },
+  hss:     { f:0.35, label:"HSS" },
+};
+const TOOLTYPE = {
+  schaft: { fz:1.00, label:"Schaftfräser (flach)" },
+  radius: { fz:0.80, label:"Schaftfräser mit Eckenradius" },
+  torus:  { fz:0.80, label:"Torusfräser" },
+  kugel:  { fz:0.50, label:"Kugelfräser" },
+  schrupp:{ fz:1.20, label:"Schruppfräser (Wellenschliff)" },
+  gravur: { fz:0.30, label:"Gravur- / Fasenfräser" },
+  bohrer: { fz:1.00, label:"Bohrer", drill:true },
+};
+const MACHINES = {
+  sorotec:  { nmin:6000,  nmax:24000, vfmax:5000,  power:2.2, label:"Sorotec Compact Line (Mechatron 2.2 kW)" },
+  kress:    { nmin:10000, nmax:25000, vfmax:3000,  power:1.05,label:"Hobby-Portal (Kress / AMB 1050 FME)" },
+  industrie:{ nmin:100,   nmax:18000, vfmax:15000, power:7.5, label:"Industrie-Bearbeitungszentrum" },
+  generic:  { nmin:1,     nmax:60000, vfmax:20000, power:99,  label:"Generisch / unbegrenzt" },
+};
+
+/* ---------- Engine (getestet) ---------- */
+function compute(p){
+  const m=MATERIALS[p.material], tm=TOOLMAT[p.toolmat], tt=TOOLTYPE[p.tooltype], mc=MACHINES[p.machine];
+  const d=p.d, z=p.z, isDrill=!!tt.drill, warn=[];
+
+  let vc=m.vc*tm.f;
+  if(isDrill) vc*=0.6;
+  if(!p.mms){
+    if(p.material!=="kunststoff") vc*=0.8;
+    if(p.material.startsWith("alu")) warn.push({t:"err",m:"Aluminium trocken: hohe Gefahr von Aufbauschneiden und Werkzeugbruch. MMS dringend empfohlen."});
+  }
+  if(!isDrill) vc*=p.finish?1.15:1.00;
+
+  let n=(vc*1000)/(Math.PI*d), nLimited=false;
+  if(n>mc.nmax){ n=mc.nmax; nLimited=true; }
+  if(n<mc.nmin){
+    warn.push({t:"err",m:`Soll-Drehzahl ${Math.round(n)} 1/min < Mindestdrehzahl der Maschine (${mc.nmin} 1/min). Durchmesser zu groß für diese Spindel — kleineres Werkzeug wählen.`});
+    n=mc.nmin;
+  }
+  const vcEff=(Math.PI*d*n)/1000;
+  if(nLimited) warn.push({t:"soft",m:`Drehzahl auf Maschinenmaximum (${mc.nmax} 1/min) begrenzt. Effektives vc nur ${vcEff.toFixed(0)} statt ${vc.toFixed(0)} m/min — reduzierte Standzeit.`});
+
+  let fz,f_u,vf;
+  if(isDrill){
+    f_u=m.fdrill*d; vf=n*f_u; fz=0;
+  }else{
+    fz=m.fz*(d/6)*tt.fz;
+    const fzMax=m.fz*2.5, fzMin=m.fz*0.15;
+    if(fz>fzMax) fz=fzMax;
+    if(fz<fzMin) fz=fzMin;
+    fz*=p.finish?0.6:1.0;
+    vf=n*z*fz;
+  }
+  if(vf>mc.vfmax){ vf=mc.vfmax; warn.push({t:"soft",m:`Vorschub auf Maschinenmaximum (${mc.vfmax} mm/min) begrenzt.`}); }
+
+  let ap=0,ae=0;
+  if(!isDrill){
+    if(p.finish){ ae=0.10*d; ap=1.5*d; } else { ae=0.40*d; ap=1.0*d; }
+  }
+
+  let mrr;
+  if(isDrill) mrr=(Math.PI/4)*d*d*vf;
+  else mrr=ae*ap*vf;
+  const pc=(mrr*m.kc)/60e6;
+  let util=0;
+  if(mc.power<90){
+    util=(pc/mc.power)*100;
+    if(util>100) warn.push({t:"err",m:`Geschätzte Schnittleistung ${pc.toFixed(2)} kW übersteigt die Spindelleistung (${mc.power} kW). ap, ae oder Vorschub reduzieren.`});
+    else if(util>80) warn.push({t:"soft",m:`Spindelauslastung ~${util.toFixed(0)} % — wenig Reserve, Schnitt beobachten.`});
+  }
+
+  return { vc:vcEff, n:Math.round(n), fz, f_u, vf:Math.round(vf), ap, ae, mrr:mrr/1000, pc, util, isDrill, warn };
+}
+
+/* ---------- UI Setup ---------- */
+function fill(sel,obj){ const e=document.getElementById(sel);
+  e.innerHTML=Object.keys(obj).map(k=>`<option value="${k}">${obj[k].label}</option>`).join(""); }
+fill("machine",MACHINES); fill("tooltype",TOOLTYPE); fill("toolmat",TOOLMAT); fill("material",MATERIALS);
+
+const state={ machine:"sorotec", tooltype:"schaft", toolmat:"vhm_coat", z:2, d:6, material:"alu_knet", finish:false, mms:true };
+
+/* localStorage laden */
+try{ const s=JSON.parse(localStorage.getItem("schnittdaten_v1")); if(s) Object.assign(state,s); }catch(e){}
+
+/* Werte in UI schreiben */
+function syncInputs(){
+  document.getElementById("machine").value=state.machine;
+  document.getElementById("tooltype").value=state.tooltype;
+  document.getElementById("toolmat").value=state.toolmat;
+  document.getElementById("material").value=state.material;
+  document.getElementById("z").value=state.z;
+  document.getElementById("d").value=state.d;
+  document.querySelectorAll("#finishSeg button").forEach(b=>
+    b.setAttribute("aria-pressed", (b.dataset.v==="finish")===state.finish ? "true":"false"));
+  document.getElementById("mmsToggle").setAttribute("aria-pressed", state.mms?"true":"false");
+}
+
+const $=id=>document.getElementById(id);
+function fmt(v,dec){ return v.toLocaleString("de-DE",{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+
+function render(){
+  const isDrill = !!TOOLTYPE[state.tooltype].drill;
+  // Felder ein/ausblenden je nach Bohren
+  $("zWrap").classList.toggle("hidden", isDrill);
+  $("finishWrap").classList.toggle("hidden", isDrill);
+  $("subrow2").classList.toggle("hidden", isDrill);
+  $("dlab").textContent = isDrill ? "Bohrer-Durchmesser (mm)" : "Durchmesser (mm)";
+
+  const r=compute(state);
+
+  $("rmode").textContent = isDrill ? "Bohren" : (state.finish?"Schlichten":"Schruppen");
+  $("o_n").innerHTML = `${fmt(r.n,0)}<span class="u">1/min</span>`;
+  $("o_vf").innerHTML = `${fmt(r.vf,0)}<span class="u">mm/min</span>`;
+  $("o_vc").innerHTML = `${fmt(r.vc,0)}<span class="u">m/min</span>`;
+
+  if(isDrill){
+    $("k_fz").textContent="Vorschub f";
+    $("o_fz").innerHTML = `${fmt(r.f_u,3)}<span class="u">mm/U</span>`;
+  }else{
+    $("k_fz").textContent="Zahnvorschub fz";
+    $("o_fz").innerHTML = `${fmt(r.fz,4)}<span class="u">mm</span>`;
+  }
+  $("o_mrr").innerHTML = `${fmt(r.mrr,1)}<span class="u">cm³/min</span>`;
+  $("o_ap").innerHTML = `${fmt(r.ap,1)}<span class="u">mm</span>`;
+  $("o_ae").innerHTML = `${fmt(r.ae,2)}<span class="u">mm</span>`;
+  $("o_pc").innerHTML = `${fmt(r.pc,2)}<span class="u">kW</span>`;
+
+  // Power
+  const hasPower = MACHINES[state.machine].power<90;
+  $("powerWrap").style.display = hasPower ? "block":"none";
+  if(hasPower){
+    const u=Math.min(r.util,140);
+    $("o_util").textContent = `${fmt(r.util,0)} %`;
+    const bar=$("bar");
+    bar.style.width = Math.min(u,100)+"%";
+    bar.style.background = r.util>100 ? "var(--err)" : r.util>80 ? "var(--warn)" : "var(--ok)";
+  }
+
+  // Warnungen
+  const w=$("warns");
+  w.innerHTML = r.warn.map(x=>{
+    const ic = x.t==="err"
+      ? `<svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1L1 14h14L8 1z" fill="none" stroke="#d61f2b" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6v4M8 11.6v.1" stroke="#d61f2b" stroke-width="1.5" stroke-linecap="round"/></svg>`
+      : `<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.6" fill="none" stroke="#d97706" stroke-width="1.4"/><path d="M8 4.6v4M8 11v.1" stroke="#d97706" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+    return `<div class="warn-item ${x.t==="soft"?"soft":""}">${ic}<div>${x.m}</div></div>`;
+  }).join("");
+
+  try{ localStorage.setItem("schnittdaten_v1",JSON.stringify(state)); }catch(e){}
+}
+
+/* ---------- Events ---------- */
+$("machine").onchange=e=>{state.machine=e.target.value;render();};
+$("tooltype").onchange=e=>{state.tooltype=e.target.value;render();};
+$("toolmat").onchange=e=>{state.toolmat=e.target.value;render();};
+$("material").onchange=e=>{state.material=e.target.value;render();};
+$("z").oninput=e=>{const v=parseInt(e.target.value);state.z=(isNaN(v)||v<1)?1:Math.min(v,12);render();};
+$("d").oninput=e=>{const v=parseFloat(e.target.value);state.d=(isNaN(v)||v<=0)?0.1:Math.min(v,50);render();};
+document.querySelectorAll("#finishSeg button").forEach(b=>b.onclick=()=>{
+  state.finish=(b.dataset.v==="finish");
+  document.querySelectorAll("#finishSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b?"true":"false"));
+  render();
+});
+const mt=$("mmsToggle");
+function toggleMms(){ state.mms=!state.mms; mt.setAttribute("aria-pressed",state.mms?"true":"false"); render(); }
+mt.onclick=toggleMms;
+mt.onkeydown=e=>{ if(e.key===" "||e.key==="Enter"){e.preventDefault();toggleMms();} };
+
+syncInputs();
+render();
+
+/* ---------- Service Worker ---------- */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>
