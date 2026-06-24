@@ -90,7 +90,7 @@ input:disabled{opacity:.5;cursor:not-allowed;background:var(--line2);color:var(-
 .main .v{font-family:var(--mono);font-size:30px;font-weight:680;line-height:1;margin-top:7px;letter-spacing:-.5px;
   font-variant-numeric:tabular-nums}
 .main .u{font-family:var(--mono);font-size:12px;color:#8a96a4;margin-left:4px;font-weight:400}
-.subrow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.subrow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .sub2{background:#171d25;border:1px solid #232b35;border-radius:10px;padding:10px 11px}
 .sub2 .k{font-family:var(--mono);font-size:10px;letter-spacing:.6px;color:#7a8694;text-transform:uppercase}
 .sub2 .v{font-family:var(--mono);font-size:17px;font-weight:640;margin-top:5px;font-variant-numeric:tabular-nums}
@@ -152,6 +152,10 @@ input:disabled{opacity:.5;cursor:not-allowed;background:var(--line2);color:var(-
       <div class="sub2"><div class="k" id="k_vc">Schnittgeschw. vc</div><div class="v" id="o_vc">–</div></div>
       <div class="sub2"><div class="k" id="k_fz">Zahnvorschub fz</div><div class="v" id="o_fz">–</div></div>
       <div class="sub2"><div class="k">Zeitspanvolumen Q</div><div class="v" id="o_mrr">–</div></div>
+    </div>
+    <div class="subrow" id="subrow2" style="margin-top:10px">
+      <div class="sub2"><div class="k" id="k_ap">Schnitttiefe ap</div><div class="v" id="o_ap">–</div></div>
+      <div class="sub2"><div class="k" id="k_ae">Schnittbreite ae</div><div class="v" id="o_ae">–</div></div>
       <div class="sub2"><div class="k">Schnittleistung Pc</div><div class="v" id="o_pc">–</div></div>
     </div>
     <div class="power" id="powerWrap">
@@ -237,7 +241,7 @@ input:disabled{opacity:.5;cursor:not-allowed;background:var(--line2);color:var(-
 
 <script>
 "use strict";
-const VERSION="1.0.4";
+const VERSION="1.0.5";
 document.getElementById("ver").textContent="v"+VERSION;
 document.getElementById("vfoot").textContent="v"+VERSION;
 
@@ -407,6 +411,13 @@ function render(){
   }
   $("o_mrr").innerHTML = `${fmt(r.mrr,1)}<span class="u">cm³/min</span>`;
   $("o_pc").innerHTML = `${fmt(r.pc,2)}<span class="u">kW</span>`;
+  if(isDrill){
+    $("o_ap").textContent = "–";
+    $("o_ae").textContent = "–";
+  }else{
+    $("o_ap").innerHTML = `${fmt(r.ap,2)}<span class="u">mm</span>`;
+    $("o_ae").innerHTML = `${fmt(r.ae,2)}<span class="u">mm</span>`;
+  }
 
   // Power
   const hasPower = MACHINES[state.machine].power<90;
