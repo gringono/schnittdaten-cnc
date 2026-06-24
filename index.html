@@ -148,14 +148,14 @@ select:focus,input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3
       <div class="main"><div class="k">Vorschub vf</div><div class="v" id="o_vf">–</div></div>
     </div>
     <div class="subrow" id="subrow">
-      <div class="sub2"><div class="k" id="k_vc">vc</div><div class="v" id="o_vc">–</div></div>
-      <div class="sub2"><div class="k" id="k_fz">fz</div><div class="v" id="o_fz">–</div></div>
-      <div class="sub2"><div class="k">MRR</div><div class="v" id="o_mrr">–</div></div>
+      <div class="sub2"><div class="k" id="k_vc">Schnittgeschw. vc</div><div class="v" id="o_vc">–</div></div>
+      <div class="sub2"><div class="k" id="k_fz">Zahnvorschub fz</div><div class="v" id="o_fz">–</div></div>
+      <div class="sub2"><div class="k">Zeitspanvolumen Q</div><div class="v" id="o_mrr">–</div></div>
     </div>
     <div class="subrow" id="subrow2" style="margin-top:10px">
-      <div class="sub2"><div class="k">Zustellung ap</div><div class="v" id="o_ap">–</div></div>
-      <div class="sub2"><div class="k">Zustellung ae</div><div class="v" id="o_ae">–</div></div>
-      <div class="sub2"><div class="k">Schnittleistung</div><div class="v" id="o_pc">–</div></div>
+      <div class="sub2"><div class="k">Schnitttiefe ap (axial)</div><div class="v" id="o_ap">–</div></div>
+      <div class="sub2"><div class="k">Schnittbreite ae (radial)</div><div class="v" id="o_ae">–</div></div>
+      <div class="sub2"><div class="k">Schnittleistung Pc</div><div class="v" id="o_pc">–</div></div>
     </div>
     <div class="power" id="powerWrap">
       <div class="plab"><span>Spindelauslastung</span><b id="o_util">–</b></div>
@@ -223,7 +223,7 @@ select:focus,input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3
 
 <script>
 "use strict";
-const VERSION="1.0.0";
+const VERSION="1.0.2";
 document.getElementById("ver").textContent="v"+VERSION;
 document.getElementById("vfoot").textContent="v"+VERSION;
 
@@ -250,6 +250,7 @@ const TOOLMAT = {
 };
 const TOOLTYPE = {
   schaft: { fz:1.00, label:"Schaftfräser (flach)" },
+  plan:   { fz:1.00, label:"Planfräser / Messerkopf", face:true },
   radius: { fz:0.80, label:"Schaftfräser mit Eckenradius" },
   torus:  { fz:0.80, label:"Torusfräser" },
   kugel:  { fz:0.50, label:"Kugelfräser" },
@@ -301,7 +302,11 @@ function compute(p){
 
   let ap=0,ae=0;
   if(!isDrill){
-    if(p.finish){ ae=0.10*d; ap=1.5*d; } else { ae=0.40*d; ap=1.0*d; }
+    if(tt.face){                                 // Planfräsen: flacher axialer Zustellung, breiter Eingriff
+      ae=0.70*d;
+      ap=p.finish?0.5:2.0;
+    }else if(p.finish){ ae=0.10*d; ap=1.5*d; }
+    else { ae=0.40*d; ap=1.0*d; }
   }
 
   let mrr;
