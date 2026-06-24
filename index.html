@@ -60,6 +60,7 @@ input[type=number]{font-family:var(--mono);font-weight:600}
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a636c' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer}
 select:focus,input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-bg)}
+input:disabled{opacity:.5;cursor:not-allowed;background:var(--line2);color:var(--ink2)}
 
 /* Segmented + toggle */
 .seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}
@@ -89,7 +90,7 @@ select:focus,input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3
 .main .v{font-family:var(--mono);font-size:30px;font-weight:680;line-height:1;margin-top:7px;letter-spacing:-.5px;
   font-variant-numeric:tabular-nums}
 .main .u{font-family:var(--mono);font-size:12px;color:#8a96a4;margin-left:4px;font-weight:400}
-.subrow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.subrow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .sub2{background:#171d25;border:1px solid #232b35;border-radius:10px;padding:10px 11px}
 .sub2 .k{font-family:var(--mono);font-size:10px;letter-spacing:.6px;color:#7a8694;text-transform:uppercase}
 .sub2 .v{font-family:var(--mono);font-size:17px;font-weight:640;margin-top:5px;font-variant-numeric:tabular-nums}
@@ -151,10 +152,6 @@ select:focus,input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3
       <div class="sub2"><div class="k" id="k_vc">Schnittgeschw. vc</div><div class="v" id="o_vc">–</div></div>
       <div class="sub2"><div class="k" id="k_fz">Zahnvorschub fz</div><div class="v" id="o_fz">–</div></div>
       <div class="sub2"><div class="k">Zeitspanvolumen Q</div><div class="v" id="o_mrr">–</div></div>
-    </div>
-    <div class="subrow" id="subrow2" style="margin-top:10px">
-      <div class="sub2"><div class="k">Schnitttiefe ap (axial)</div><div class="v" id="o_ap">–</div></div>
-      <div class="sub2"><div class="k">Schnittbreite ae (radial)</div><div class="v" id="o_ae">–</div></div>
       <div class="sub2"><div class="k">Schnittleistung Pc</div><div class="v" id="o_pc">–</div></div>
     </div>
     <div class="power" id="powerWrap">
@@ -214,8 +211,25 @@ select:focus,input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3
           <div class="sw"></div>
         </div>
       </div>
+      <div class="field full" id="zustellWrap">
+        <label>Zustellung</label>
+        <div class="toggle" id="autoZ" role="button" aria-pressed="true" tabindex="0">
+          <span>Automatisch (Richtwert)</span>
+          <div class="sw"></div>
+        </div>
+        <div class="grid" style="margin-top:11px">
+          <div class="field">
+            <label for="ap">Schnitttiefe ap (mm)</label>
+            <input id="ap" type="number" min="0" max="200" step="0.1" inputmode="decimal">
+          </div>
+          <div class="field">
+            <label for="ae">Schnittbreite ae (mm)</label>
+            <input id="ae" type="number" min="0" max="200" step="0.1" inputmode="decimal">
+          </div>
+        </div>
+      </div>
     </div>
-    <p class="note">Richtwerte für VHM-beschichtete Werkzeuge bei vorhandener Kühlung. ap/ae sind Startzustellungen — an Werkzeug, Auskragung und Spindelsteifigkeit anpassen. Standzeit, Schwingungen und Spanbild im Erstschnitt prüfen.</p>
+    <p class="note">Richtwerte für VHM-beschichtete Werkzeuge bei vorhandener Kühlung. Im Auto-Modus folgen ap/ae dem Werkzeug; zum Variieren auf manuell schalten — Q und Pc rechnen dann mit deinen Werten. Standzeit, Schwingungen und Spanbild im Erstschnitt prüfen.</p>
   </div>
 
   <div class="foot">SCHNITTDATEN CNC · <b>by MeltingHero</b> · <span id="vfoot">v1.0.0</span></div>
@@ -223,7 +237,7 @@ select:focus,input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3
 
 <script>
 "use strict";
-const VERSION="1.0.2";
+const VERSION="1.0.3";
 document.getElementById("ver").textContent="v"+VERSION;
 document.getElementById("vfoot").textContent="v"+VERSION;
 
@@ -307,6 +321,8 @@ function compute(p){
       ap=p.finish?0.5:2.0;
     }else if(p.finish){ ae=0.10*d; ap=1.5*d; }
     else { ae=0.40*d; ap=1.0*d; }
+    if(p.apOverride!=null && !isNaN(p.apOverride) && p.apOverride>=0) ap=p.apOverride;
+    if(p.aeOverride!=null && !isNaN(p.aeOverride) && p.aeOverride>=0) ae=p.aeOverride;
   }
 
   let mrr;
@@ -328,7 +344,7 @@ function fill(sel,obj){ const e=document.getElementById(sel);
   e.innerHTML=Object.keys(obj).map(k=>`<option value="${k}">${obj[k].label}</option>`).join(""); }
 fill("machine",MACHINES); fill("tooltype",TOOLTYPE); fill("toolmat",TOOLMAT); fill("material",MATERIALS);
 
-const state={ machine:"sorotec", tooltype:"schaft", toolmat:"vhm_coat", z:2, d:6, material:"alu_knet", finish:false, mms:true };
+const state={ machine:"sorotec", tooltype:"schaft", toolmat:"vhm_coat", z:2, d:6, material:"alu_knet", finish:false, mms:true, zAuto:true, ap:6, ae:2.4 };
 
 /* localStorage laden */
 try{ const s=JSON.parse(localStorage.getItem("schnittdaten_v1")); if(s) Object.assign(state,s); }catch(e){}
@@ -344,6 +360,9 @@ function syncInputs(){
   document.querySelectorAll("#finishSeg button").forEach(b=>
     b.setAttribute("aria-pressed", (b.dataset.v==="finish")===state.finish ? "true":"false"));
   document.getElementById("mmsToggle").setAttribute("aria-pressed", state.mms?"true":"false");
+  document.getElementById("autoZ").setAttribute("aria-pressed", state.zAuto?"true":"false");
+  document.getElementById("ap").value=state.ap;
+  document.getElementById("ae").value=state.ae;
 }
 
 const $=id=>document.getElementById(id);
@@ -354,10 +373,23 @@ function render(){
   // Felder ein/ausblenden je nach Bohren
   $("zWrap").classList.toggle("hidden", isDrill);
   $("finishWrap").classList.toggle("hidden", isDrill);
-  $("subrow2").classList.toggle("hidden", isDrill);
+  $("zustellWrap").classList.toggle("hidden", isDrill);
   $("dlab").textContent = isDrill ? "Bohrer-Durchmesser (mm)" : "Durchmesser (mm)";
 
-  const r=compute(state);
+  const r=compute({
+    ...state,
+    apOverride: state.zAuto ? null : state.ap,
+    aeOverride: state.zAuto ? null : state.ae
+  });
+
+  // ap/ae-Eingabefelder pflegen
+  const apIn=$("ap"), aeIn=$("ae");
+  apIn.disabled = state.zAuto || isDrill;
+  aeIn.disabled = state.zAuto || isDrill;
+  if(state.zAuto && !isDrill){
+    state.ap = +r.ap.toFixed(2); state.ae = +r.ae.toFixed(2);
+    apIn.value = state.ap; aeIn.value = state.ae;
+  }
 
   $("rmode").textContent = isDrill ? "Bohren" : (state.finish?"Schlichten":"Schruppen");
   $("o_n").innerHTML = `${fmt(r.n,0)}<span class="u">1/min</span>`;
@@ -372,8 +404,6 @@ function render(){
     $("o_fz").innerHTML = `${fmt(r.fz,4)}<span class="u">mm</span>`;
   }
   $("o_mrr").innerHTML = `${fmt(r.mrr,1)}<span class="u">cm³/min</span>`;
-  $("o_ap").innerHTML = `${fmt(r.ap,1)}<span class="u">mm</span>`;
-  $("o_ae").innerHTML = `${fmt(r.ae,2)}<span class="u">mm</span>`;
   $("o_pc").innerHTML = `${fmt(r.pc,2)}<span class="u">kW</span>`;
 
   // Power
@@ -415,6 +445,13 @@ const mt=$("mmsToggle");
 function toggleMms(){ state.mms=!state.mms; mt.setAttribute("aria-pressed",state.mms?"true":"false"); render(); }
 mt.onclick=toggleMms;
 mt.onkeydown=e=>{ if(e.key===" "||e.key==="Enter"){e.preventDefault();toggleMms();} };
+
+const az=$("autoZ");
+function toggleAuto(){ state.zAuto=!state.zAuto; az.setAttribute("aria-pressed",state.zAuto?"true":"false"); render(); }
+az.onclick=toggleAuto;
+az.onkeydown=e=>{ if(e.key===" "||e.key==="Enter"){e.preventDefault();toggleAuto();} };
+$("ap").oninput=e=>{ const v=parseFloat(e.target.value); state.ap=(isNaN(v)||v<0)?0:Math.min(v,200); render(); };
+$("ae").oninput=e=>{ const v=parseFloat(e.target.value); state.ae=(isNaN(v)||v<0)?0:Math.min(v,200); render(); };
 
 syncInputs();
 render();
