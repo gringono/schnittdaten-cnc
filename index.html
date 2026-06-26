@@ -158,6 +158,10 @@ input:disabled{opacity:.6;cursor:not-allowed;background:var(--field);color:var(-
       <div class="sub2"><div class="k" id="k_ae">Schnittbreite ae</div><div class="v" id="o_ae">–</div></div>
       <div class="sub2"><div class="k">Schnittleistung Pc</div><div class="v" id="o_pc">–</div></div>
     </div>
+    <div class="subrow" id="subrow3" style="grid-template-columns:1fr 1fr;margin-top:10px">
+      <div class="sub2"><div class="k">Eintauchvorschub Fn</div><div class="v" id="o_vfp">–</div></div>
+      <div class="sub2"><div class="k">Eintauchen Fz</div><div class="v" id="o_fzp">–</div></div>
+    </div>
     <div class="power" id="powerWrap">
       <div class="plab"><span>Spindelauslastung</span><b id="o_util">–</b></div>
       <div class="bar"><i id="bar" style="width:0%"></i></div>
@@ -245,25 +249,25 @@ input:disabled{opacity:.6;cursor:not-allowed;background:var(--field);color:var(-
 
 <script>
 "use strict";
-const VERSION="1.0.6";
+const VERSION="1.0.7";
 document.getElementById("ver").textContent="v"+VERSION;
 document.getElementById("vfoot").textContent="v"+VERSION;
 
 /* ---------- Daten ---------- */
 const MATERIALS = {
-  alu_knet:   { vc:400, fz:0.05,  fdrill:0.020, kc:750,  label:"Aluminium Knetlegierung (AlMg, AlCuMg)" },
-  alu_guss:   { vc:250, fz:0.040, fdrill:0.015, kc:850,  label:"Aluminium Guss (AlSi)" },
-  messing:    { vc:250, fz:0.050, fdrill:0.015, kc:700,  label:"Messing" },
-  kupfer:     { vc:150, fz:0.040, fdrill:0.012, kc:900,  label:"Kupfer" },
-  stahl_weich:{ vc:160, fz:0.040, fdrill:0.012, kc:2000, label:"Stahl unlegiert (S235, C45 weich)" },
-  stahl_verg: { vc:110, fz:0.030, fdrill:0.010, kc:2200, label:"Stahl vergütet (42CrMo4)" },
-  stahl_geh:  { vc:60,  fz:0.020, fdrill:0.006, kc:3000, label:"Werkzeugstahl gehärtet (>50 HRC)" },
-  edel_v2a:   { vc:100, fz:0.030, fdrill:0.008, kc:2400, label:"Edelstahl V2A (1.4301)" },
-  edel_v4a:   { vc:80,  fz:0.025, fdrill:0.007, kc:2600, label:"Edelstahl V4A (1.4571)" },
-  grauguss:   { vc:120, fz:0.050, fdrill:0.015, kc:1400, label:"Grauguss (GG)" },
-  titan:      { vc:45,  fz:0.030, fdrill:0.008, kc:1400, label:"Titan (Ti6Al4V)" },
-  kunststoff: { vc:500, fz:0.060, fdrill:0.030, kc:250,  label:"Kunststoff (POM, PA, PMMA)" },
-  faser:      { vc:150, fz:0.040, fdrill:0.020, kc:600,  label:"GFK / CFK" },
+  alu_knet:   { vc:400, fz:0.05,  fdrill:0.020, kc:750,  plunge:0.50, label:"Aluminium Knetlegierung (AlMg, AlCuMg)" },
+  alu_guss:   { vc:250, fz:0.040, fdrill:0.015, kc:850,  plunge:0.45, label:"Aluminium Guss (AlSi)" },
+  messing:    { vc:250, fz:0.050, fdrill:0.015, kc:700,  plunge:0.50, label:"Messing" },
+  kupfer:     { vc:150, fz:0.040, fdrill:0.012, kc:900,  plunge:0.40, label:"Kupfer" },
+  stahl_weich:{ vc:160, fz:0.040, fdrill:0.012, kc:2000, plunge:0.35, label:"Stahl unlegiert (S235, C45 weich)" },
+  stahl_verg: { vc:110, fz:0.030, fdrill:0.010, kc:2200, plunge:0.30, label:"Stahl vergütet (42CrMo4)" },
+  stahl_geh:  { vc:60,  fz:0.020, fdrill:0.006, kc:3000, plunge:0.20, label:"Werkzeugstahl gehärtet (>50 HRC)" },
+  edel_v2a:   { vc:100, fz:0.030, fdrill:0.008, kc:2400, plunge:0.30, label:"Edelstahl V2A (1.4301)" },
+  edel_v4a:   { vc:80,  fz:0.025, fdrill:0.007, kc:2600, plunge:0.25, label:"Edelstahl V4A (1.4571)" },
+  grauguss:   { vc:120, fz:0.050, fdrill:0.015, kc:1400, plunge:0.40, label:"Grauguss (GG)" },
+  titan:      { vc:45,  fz:0.030, fdrill:0.008, kc:1400, plunge:0.20, label:"Titan (Ti6Al4V)" },
+  kunststoff: { vc:500, fz:0.060, fdrill:0.030, kc:250,  plunge:0.50, label:"Kunststoff (POM, PA, PMMA)" },
+  faser:      { vc:150, fz:0.040, fdrill:0.020, kc:600,  plunge:0.40, label:"GFK / CFK" },
 };
 const TOOLMAT = {
   vhm_coat:{ f:1.00, label:"VHM beschichtet" },
@@ -320,7 +324,7 @@ function compute(p){
     if(p.aeOverride!=null && !isNaN(p.aeOverride) && p.aeOverride>=0) ae=p.aeOverride;
   }
 
-  let fz,f_u,vf,rctf=1;
+  let fz,f_u,vf,rctf=1,vfBase=0;
   if(isDrill){
     f_u=m.fdrill*d; vf=n*f_u; fz=0;
   }else{
@@ -329,14 +333,24 @@ function compute(p){
     if(fz>fzMax) fz=fzMax;
     if(fz<fzMin) fz=fzMin;
     fz*=p.finish?0.6:1.0;
-    vf=n*z*fz;
-    if(p.thin && ae>0 && ae<d/2){                // radiale Spanverdünnung: Vorschub anheben
+    vfBase=n*z*fz;                                // Seitenvorschub ohne Spanverdünnung
+    vf=vfBase;
+    if(p.thin && ae>0 && ae<d/2){                // radiale Spanverdünnung: nur Seitenvorschub anheben
       rctf=d/(2*Math.sqrt(ae*(d-ae)));
       if(rctf>2.5) rctf=2.5;                      // Sicherheitsdeckel
       vf*=rctf;
     }
   }
   if(vf>mc.vfmax){ vf=mc.vfmax; warn.push({t:"soft",m:`Vorschub auf Maschinenmaximum (${mc.vfmax} mm/min) begrenzt.`}); }
+
+  // Eintauchvorschub (axial) — vom nicht-spanverdünnten Vorschub abgeleitet
+  let vfPlunge,fzPlunge;
+  if(isDrill){
+    vfPlunge=vf; fzPlunge=f_u;
+  }else{
+    vfPlunge=Math.min(vfBase*m.plunge, mc.vfmax);
+    fzPlunge=(n>0&&z>0)? vfPlunge/(n*z) : 0;
+  }
 
   let mrr;
   if(isDrill) mrr=(Math.PI/4)*d*d*vf;
@@ -351,7 +365,7 @@ function compute(p){
 
   const vfR=Math.round(vf);
   const fzShown = isDrill ? 0 : (z>0 ? vfR/(n*z) : 0);
-  return { vc:vcEff, n:Math.round(n), fz:fzShown, f_u, vf:vfR, ap, ae, mrr:mrr/1000, pc, util, isDrill, warn, rctf };
+  return { vc:vcEff, n:Math.round(n), fz:fzShown, f_u, vf:vfR, ap, ae, mrr:mrr/1000, pc, util, isDrill, warn, rctf, vfPlunge:Math.round(vfPlunge), fzPlunge };
 }
 
 /* ---------- UI Setup ---------- */
@@ -431,6 +445,8 @@ function render(){
     $("o_ap").innerHTML = `${fmt(r.ap,2)}<span class="u">mm</span>`;
     $("o_ae").innerHTML = `${fmt(r.ae,2)}<span class="u">mm</span>`;
   }
+  $("o_vfp").innerHTML = `${fmt(r.vfPlunge,0)}<span class="u">mm/min</span>`;
+  $("o_fzp").innerHTML = `${fmt(r.fzPlunge,4)}<span class="u">mm</span>`;
 
   // Power
   const hasPower = MACHINES[state.machine].power<90;
