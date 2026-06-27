@@ -270,7 +270,7 @@ input:disabled{opacity:.6;cursor:not-allowed;background:var(--field);color:var(-
 
 <script>
 "use strict";
-const VERSION="1.0.11";
+const VERSION="1.0.13";
 document.getElementById("ver").textContent="v"+VERSION;
 document.getElementById("vfoot").textContent="v"+VERSION;
 
@@ -308,10 +308,10 @@ const TOOLTYPE = {
   bohrer: { fz:1.00, label:"Bohrer", drill:true },
 };
 const MACHINES = {
-  sorotec:  { nmin:6000,  nmax:24000, vfmax:5000,  power:2.2, label:"Sorotec Compact Line (Mechatron 2.2 kW)" },
-  kress:    { nmin:10000, nmax:25000, vfmax:3000,  power:1.05,label:"Hobby-Portal (Kress / AMB 1050 FME)" },
-  industrie:{ nmin:100,   nmax:18000, vfmax:15000, power:7.5, label:"Industrie-Bearbeitungszentrum" },
-  generic:  { nmin:1,     nmax:60000, vfmax:20000, power:99,  label:"Generisch / unbegrenzt" },
+  sorotec:  { nmin:6000,  nmax:24000, vfmax:5000,  power:2.2, rig:0.50, aeFac:0.25, label:"Sorotec Compact Line (Mechatron 2.2 kW)" },
+  kress:    { nmin:10000, nmax:25000, vfmax:3000,  power:1.05,rig:0.35, aeFac:0.20, label:"Hobby-Portal (Kress / AMB 1050 FME)" },
+  industrie:{ nmin:100,   nmax:18000, vfmax:15000, power:7.5, rig:1.00, aeFac:0.40, label:"Industrie-Bearbeitungszentrum" },
+  generic:  { nmin:1,     nmax:60000, vfmax:20000, power:99,  rig:1.00, aeFac:0.40, label:"Generisch / unbegrenzt" },
 };
 
 /* ---------- Engine (getestet) ---------- */
@@ -342,7 +342,7 @@ function compute(p){
       ae=0.70*d;
       ap=p.finish?0.5:2.0;
     }else if(p.finish){ ae=0.10*d; ap=1.5*d; }
-    else { ae=0.40*d; ap=1.0*d; }
+    else { ae=mc.aeFac*d; ap=1.0*d*mc.rig; }
     if(p.apOverride!=null && !isNaN(p.apOverride) && p.apOverride>=0) ap=p.apOverride;
     if(p.aeOverride!=null && !isNaN(p.aeOverride) && p.aeOverride>=0) ae=p.aeOverride;
   }
