@@ -249,7 +249,7 @@ input:disabled{opacity:.6;cursor:not-allowed;background:var(--field);color:var(-
 
 <script>
 "use strict";
-const VERSION="1.0.7";
+const VERSION="1.0.8";
 document.getElementById("ver").textContent="v"+VERSION;
 document.getElementById("vfoot").textContent="v"+VERSION;
 
@@ -281,7 +281,9 @@ const TOOLTYPE = {
   torus:  { fz:0.80, label:"Torusfräser" },
   kugel:  { fz:0.50, label:"Kugelfräser" },
   schrupp:{ fz:1.20, label:"Schruppfräser (Wellenschliff)" },
-  gravur: { fz:0.30, label:"Gravur- / Fasenfräser" },
+  fase:   { fz:0.40, light:true, mode:"Fasen", label:"Fasenfräser 90°" },
+  entgrat:{ fz:0.30, light:true, mode:"Entgraten", label:"Entgrater 90°" },
+  gravur: { fz:0.25, light:true, mode:"Gravieren", label:"Gravurfräser" },
   bohrer: { fz:1.00, label:"Bohrer", drill:true },
 };
 const MACHINES = {
@@ -294,7 +296,7 @@ const MACHINES = {
 /* ---------- Engine (getestet) ---------- */
 function compute(p){
   const m=MATERIALS[p.material], tm=TOOLMAT[p.toolmat], tt=TOOLTYPE[p.tooltype], mc=MACHINES[p.machine];
-  const d=p.d, z=p.z, isDrill=!!tt.drill, warn=[];
+  const d=p.d, z=p.z, isDrill=!!tt.drill, isLight=!!tt.light, warn=[];
 
   let vc=m.vc*tm.f;
   if(isDrill) vc*=0.6;
@@ -314,7 +316,7 @@ function compute(p){
   if(nLimited) warn.push({t:"soft",m:`Drehzahl auf Maschinenmaximum (${mc.nmax} 1/min) begrenzt. Effektives vc nur ${vcEff.toFixed(0)} statt ${vc.toFixed(0)} m/min — reduzierte Standzeit.`});
 
   let ap=0,ae=0;
-  if(!isDrill){
+  if(!isDrill && !isLight){
     if(tt.face){                                 // Planfräsen: flacher axialer Zustellung, breiter Eingriff
       ae=0.70*d;
       ap=p.finish?0.5:2.0;
@@ -353,7 +355,8 @@ function compute(p){
   }
 
   let mrr;
-  if(isDrill) mrr=(Math.PI/4)*d*d*vf;
+  if(isLight) mrr=0;
+  else if(isDrill) mrr=(Math.PI/4)*d*d*vf;
   else mrr=ae*ap*vf;
   const pc=(mrr*m.kc)/60e6;
   let util=0;
@@ -365,7 +368,7 @@ function compute(p){
 
   const vfR=Math.round(vf);
   const fzShown = isDrill ? 0 : (z>0 ? vfR/(n*z) : 0);
-  return { vc:vcEff, n:Math.round(n), fz:fzShown, f_u, vf:vfR, ap, ae, mrr:mrr/1000, pc, util, isDrill, warn, rctf, vfPlunge:Math.round(vfPlunge), fzPlunge };
+  return { vc:vcEff, n:Math.round(n), fz:fzShown, f_u, vf:vfR, ap, ae, mrr:mrr/1000, pc, util, isDrill, isLight, warn, rctf, vfPlunge:Math.round(vfPlunge), fzPlunge };
 }
 
 /* ---------- UI Setup ---------- */
@@ -402,10 +405,11 @@ const toField=n=>String(n).replace(".",",");                 // Anzeige mit Dezi
 
 function render(){
   const isDrill = !!TOOLTYPE[state.tooltype].drill;
+  const isLight = !!TOOLTYPE[state.tooltype].light;
   // Felder ein/ausblenden je nach Bohren
   $("zWrap").classList.toggle("hidden", isDrill);
-  $("finishWrap").classList.toggle("hidden", isDrill);
-  $("zustellWrap").classList.toggle("hidden", isDrill);
+  $("finishWrap").classList.toggle("hidden", isDrill || isLight);
+  $("zustellWrap").classList.toggle("hidden", isDrill || isLight);
   $("dlab").textContent = isDrill ? "Bohrer-Durchmesser (mm)" : "Durchmesser (mm)";
 
   const r=compute({
@@ -417,14 +421,14 @@ function render(){
 
   // ap/ae-Eingabefelder pflegen
   const apIn=$("ap"), aeIn=$("ae");
-  apIn.disabled = state.zAuto || isDrill;
-  aeIn.disabled = state.zAuto || isDrill;
-  if(state.zAuto && !isDrill){
+  apIn.disabled = state.zAuto || isDrill || isLight;
+  aeIn.disabled = state.zAuto || isDrill || isLight;
+  if(state.zAuto && !isDrill && !isLight){
     state.ap = +r.ap.toFixed(2); state.ae = +r.ae.toFixed(2);
     apIn.value = toField(state.ap); aeIn.value = toField(state.ae);
   }
 
-  $("rmode").textContent = isDrill ? "Bohren" : (state.finish?"Schlichten":"Schruppen");
+  $("rmode").textContent = isDrill ? "Bohren" : isLight ? TOOLTYPE[state.tooltype].mode : (state.finish?"Schlichten":"Schruppen");
   $("o_n").innerHTML = `${fmt(r.n,0)}<span class="u">1/min</span>`;
   $("o_vf").innerHTML = `${fmt(r.vf,0)}<span class="u">mm/min</span>`;
   $("o_vc").innerHTML = `${fmt(r.vc,0)}<span class="u">m/min</span>`;
@@ -436,20 +440,27 @@ function render(){
     $("k_fz").textContent="Zahnvorschub fz";
     $("o_fz").innerHTML = `${fmt(r.fz,4)}<span class="u">mm</span>`;
   }
-  $("o_mrr").innerHTML = `${fmt(r.mrr,1)}<span class="u">cm³/min</span>`;
-  $("o_pc").innerHTML = `${fmt(r.pc,2)}<span class="u">kW</span>`;
-  if(isDrill){
+  if(isLight){
+    $("o_mrr").textContent = "–";
+    $("o_pc").textContent = "–";
     $("o_ap").textContent = "–";
     $("o_ae").textContent = "–";
   }else{
-    $("o_ap").innerHTML = `${fmt(r.ap,2)}<span class="u">mm</span>`;
-    $("o_ae").innerHTML = `${fmt(r.ae,2)}<span class="u">mm</span>`;
+    $("o_mrr").innerHTML = `${fmt(r.mrr,1)}<span class="u">cm³/min</span>`;
+    $("o_pc").innerHTML = `${fmt(r.pc,2)}<span class="u">kW</span>`;
+    if(isDrill){
+      $("o_ap").textContent = "–";
+      $("o_ae").textContent = "–";
+    }else{
+      $("o_ap").innerHTML = `${fmt(r.ap,2)}<span class="u">mm</span>`;
+      $("o_ae").innerHTML = `${fmt(r.ae,2)}<span class="u">mm</span>`;
+    }
   }
   $("o_vfp").innerHTML = `${fmt(r.vfPlunge,0)}<span class="u">mm/min</span>`;
   $("o_fzp").innerHTML = `${fmt(r.fzPlunge,4)}<span class="u">mm</span>`;
 
   // Power
-  const hasPower = MACHINES[state.machine].power<90;
+  const hasPower = MACHINES[state.machine].power<90 && !isLight;
   $("powerWrap").style.display = hasPower ? "block":"none";
   if(hasPower){
     const u=Math.min(r.util,140);
