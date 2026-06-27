@@ -240,6 +240,10 @@ input:disabled{opacity:.6;cursor:not-allowed;background:var(--field);color:var(-
           <div class="sw"></div>
         </div>
       </div>
+      <div class="field full hidden" id="fasenWrap">
+        <label for="chamfer">Fasengröße C (mm)</label>
+        <input id="chamfer" type="text" inputmode="decimal" autocomplete="off">
+      </div>
     </div>
     <p class="note">Richtwerte für VHM-beschichtete Werkzeuge bei vorhandener Kühlung. Im Auto-Modus folgen ap/ae dem Werkzeug; zum Variieren auf manuell schalten — Q und Pc rechnen dann mit deinen Werten. Spanverdünnung hebt bei seitlichem Eingriff (ae &lt; d/2) den Vorschub an, da die Späne dünner werden — nur bei steifem Setup nutzen. Standzeit, Schwingungen und Spanbild im Erstschnitt prüfen.</p>
   </div>
@@ -249,7 +253,7 @@ input:disabled{opacity:.6;cursor:not-allowed;background:var(--field);color:var(-
 
 <script>
 "use strict";
-const VERSION="1.0.8";
+const VERSION="1.0.9";
 document.getElementById("ver").textContent="v"+VERSION;
 document.getElementById("vfoot").textContent="v"+VERSION;
 
@@ -354,8 +358,12 @@ function compute(p){
     fzPlunge=(n>0&&z>0)? vfPlunge/(n*z) : 0;
   }
 
-  let mrr;
-  if(isLight) mrr=0;
+  let mrr, zDepth=0;
+  if(isLight){
+    const C = (p.chamfer>0 && !isNaN(p.chamfer)) ? p.chamfer : 0;
+    zDepth = C;                                  // Z-Frästiefe ≈ C bei 90°-Werkzeug
+    mrr = (C*C/2) * vf;                           // Fasenquerschnitt (45°-Dreieck) × Vorschub
+  }
   else if(isDrill) mrr=(Math.PI/4)*d*d*vf;
   else mrr=ae*ap*vf;
   const pc=(mrr*m.kc)/60e6;
@@ -368,7 +376,7 @@ function compute(p){
 
   const vfR=Math.round(vf);
   const fzShown = isDrill ? 0 : (z>0 ? vfR/(n*z) : 0);
-  return { vc:vcEff, n:Math.round(n), fz:fzShown, f_u, vf:vfR, ap, ae, mrr:mrr/1000, pc, util, isDrill, isLight, warn, rctf, vfPlunge:Math.round(vfPlunge), fzPlunge };
+  return { vc:vcEff, n:Math.round(n), fz:fzShown, f_u, vf:vfR, ap, ae, mrr:mrr/1000, pc, util, isDrill, isLight, zDepth, warn, rctf, vfPlunge:Math.round(vfPlunge), fzPlunge };
 }
 
 /* ---------- UI Setup ---------- */
@@ -376,7 +384,7 @@ function fill(sel,obj){ const e=document.getElementById(sel);
   e.innerHTML=Object.keys(obj).map(k=>`<option value="${k}">${obj[k].label}</option>`).join(""); }
 fill("machine",MACHINES); fill("tooltype",TOOLTYPE); fill("toolmat",TOOLMAT); fill("material",MATERIALS);
 
-const state={ machine:"sorotec", tooltype:"schaft", toolmat:"vhm_coat", z:2, d:6, material:"alu_knet", finish:false, mms:true, zAuto:true, ap:6, ae:2.4, thin:false };
+const state={ machine:"sorotec", tooltype:"schaft", toolmat:"vhm_coat", z:2, d:6, material:"alu_knet", finish:false, mms:true, zAuto:true, ap:6, ae:2.4, thin:false, chamfer:1 };
 
 /* localStorage laden */
 try{ const s=JSON.parse(localStorage.getItem("schnittdaten_v1")); if(s) Object.assign(state,s); }catch(e){}
@@ -396,6 +404,7 @@ function syncInputs(){
   document.getElementById("ap").value=toField(state.ap);
   document.getElementById("ae").value=toField(state.ae);
   document.getElementById("thinToggle").setAttribute("aria-pressed", state.thin?"true":"false");
+  document.getElementById("chamfer").value=toField(state.chamfer);
 }
 
 const $=id=>document.getElementById(id);
@@ -410,13 +419,15 @@ function render(){
   $("zWrap").classList.toggle("hidden", isDrill);
   $("finishWrap").classList.toggle("hidden", isDrill || isLight);
   $("zustellWrap").classList.toggle("hidden", isDrill || isLight);
+  $("fasenWrap").classList.toggle("hidden", !isLight);
   $("dlab").textContent = isDrill ? "Bohrer-Durchmesser (mm)" : "Durchmesser (mm)";
 
   const r=compute({
     ...state,
     apOverride: state.zAuto ? null : state.ap,
     aeOverride: state.zAuto ? null : state.ae,
-    thin: state.thin
+    thin: state.thin,
+    chamfer: state.chamfer
   });
 
   // ap/ae-Eingabefelder pflegen
@@ -441,11 +452,15 @@ function render(){
     $("o_fz").innerHTML = `${fmt(r.fz,4)}<span class="u">mm</span>`;
   }
   if(isLight){
-    $("o_mrr").textContent = "–";
-    $("o_pc").textContent = "–";
-    $("o_ap").textContent = "–";
-    $("o_ae").textContent = "–";
+    $("k_ap").textContent = "Z-Tiefe";
+    $("o_ap").innerHTML = `${fmt(r.zDepth,2)}<span class="u">mm</span>`;
+    $("k_ae").textContent = "Fasenquerschnitt";
+    $("o_ae").innerHTML = `${fmt(state.chamfer*state.chamfer/2,2)}<span class="u">mm²</span>`;
+    $("o_mrr").innerHTML = `${fmt(r.mrr,1)}<span class="u">cm³/min</span>`;
+    $("o_pc").innerHTML = `${fmt(r.pc,2)}<span class="u">kW</span>`;
   }else{
+    $("k_ap").textContent = "Schnitttiefe ap";
+    $("k_ae").textContent = "Schnittbreite ae";
     $("o_mrr").innerHTML = `${fmt(r.mrr,1)}<span class="u">cm³/min</span>`;
     $("o_pc").innerHTML = `${fmt(r.pc,2)}<span class="u">kW</span>`;
     if(isDrill){
@@ -460,7 +475,7 @@ function render(){
   $("o_fzp").innerHTML = `${fmt(r.fzPlunge,4)}<span class="u">mm</span>`;
 
   // Power
-  const hasPower = MACHINES[state.machine].power<90 && !isLight;
+  const hasPower = MACHINES[state.machine].power<90;
   $("powerWrap").style.display = hasPower ? "block":"none";
   if(hasPower){
     const u=Math.min(r.util,140);
@@ -505,6 +520,7 @@ az.onclick=toggleAuto;
 az.onkeydown=e=>{ if(e.key===" "||e.key==="Enter"){e.preventDefault();toggleAuto();} };
 $("ap").oninput=e=>{ const v=parseNum(e.target.value); state.ap=(isNaN(v)||v<0)?0:Math.min(v,200); render(); };
 $("ae").oninput=e=>{ const v=parseNum(e.target.value); state.ae=(isNaN(v)||v<0)?0:Math.min(v,200); render(); };
+$("chamfer").oninput=e=>{ const v=parseNum(e.target.value); state.chamfer=(isNaN(v)||v<0)?0:Math.min(v,20); render(); };
 const tt2=$("thinToggle");
 function toggleThin(){ state.thin=!state.thin; tt2.setAttribute("aria-pressed",state.thin?"true":"false"); render(); }
 tt2.onclick=toggleThin;
