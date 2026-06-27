@@ -253,7 +253,7 @@ input:disabled{opacity:.6;cursor:not-allowed;background:var(--field);color:var(-
 
 <script>
 "use strict";
-const VERSION="1.0.9";
+const VERSION="1.0.10";
 document.getElementById("ver").textContent="v"+VERSION;
 document.getElementById("vfoot").textContent="v"+VERSION;
 
@@ -420,6 +420,7 @@ function render(){
   $("finishWrap").classList.toggle("hidden", isDrill || isLight);
   $("zustellWrap").classList.toggle("hidden", isDrill || isLight);
   $("fasenWrap").classList.toggle("hidden", !isLight);
+  $("subrow3").classList.toggle("hidden", isDrill);
   $("dlab").textContent = isDrill ? "Bohrer-Durchmesser (mm)" : "Durchmesser (mm)";
 
   const r=compute({
