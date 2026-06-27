@@ -239,10 +239,6 @@ input:disabled{opacity:.6;cursor:not-allowed;background:var(--field);color:var(-
             <input id="ae" type="text" inputmode="decimal" autocomplete="off">
           </div>
         </div>
-        <div class="toggle" id="thinToggle" role="button" aria-pressed="false" tabindex="0" style="margin-top:11px">
-          <span>Spanverdünnung kompensieren (vf)</span>
-          <div class="sw"></div>
-        </div>
       </div>
       <div class="field full hidden" id="fasenWrap">
         <label for="chamfer">Fasengröße C (mm)</label>
@@ -262,7 +258,7 @@ input:disabled{opacity:.6;cursor:not-allowed;background:var(--field);color:var(-
         </div>
       </div>
     </div>
-    <p class="note">Richtwerte für VHM-beschichtete Werkzeuge bei vorhandener Kühlung. Im Auto-Modus folgen ap/ae dem Werkzeug; zum Variieren auf manuell schalten — Q und Pc rechnen dann mit deinen Werten. Spanverdünnung hebt bei seitlichem Eingriff (ae &lt; d/2) den Vorschub an, da die Späne dünner werden — nur bei steifem Setup nutzen. Standzeit, Schwingungen und Spanbild im Erstschnitt prüfen.</p>
+    <p class="note">Richtwerte für VHM-beschichtete Werkzeuge bei vorhandener Kühlung. Im Auto-Modus folgen ap/ae dem Werkzeug und der Maschinensteifigkeit; zum Variieren auf manuell schalten — Q und Pc rechnen dann mit deinen Werten. Standzeit, Schwingungen und Spanbild im Erstschnitt prüfen.</p>
   </div>
 
   <div class="foot">SCHNITTDATEN CNC · <b>by MeltingHero</b> · <span id="vfoot">v1.0.0</span></div>
@@ -270,7 +266,7 @@ input:disabled{opacity:.6;cursor:not-allowed;background:var(--field);color:var(-
 
 <script>
 "use strict";
-const VERSION="1.0.13";
+const VERSION="1.0.14";
 document.getElementById("ver").textContent="v"+VERSION;
 document.getElementById("vfoot").textContent="v"+VERSION;
 
@@ -347,7 +343,7 @@ function compute(p){
     if(p.aeOverride!=null && !isNaN(p.aeOverride) && p.aeOverride>=0) ae=p.aeOverride;
   }
 
-  let fz,f_u,vf,rctf=1,vfBase=0;
+  let fz,f_u,vf,vfBase=0;
   if(isDrill){
     f_u=m.fdrill*d; vf=n*f_u; fz=0;
   }else{
@@ -356,13 +352,8 @@ function compute(p){
     if(fz>fzMax) fz=fzMax;
     if(fz<fzMin) fz=fzMin;
     fz*=p.finish?0.6:1.0;
-    vfBase=n*z*fz;                                // Seitenvorschub ohne Spanverdünnung
+    vfBase=n*z*fz;
     vf=vfBase;
-    if(p.thin && ae>0 && ae<d/2){                // radiale Spanverdünnung: nur Seitenvorschub anheben
-      rctf=d/(2*Math.sqrt(ae*(d-ae)));
-      if(rctf>2.5) rctf=2.5;                      // Sicherheitsdeckel
-      vf*=rctf;
-    }
   }
   if(vf>mc.vfmax){ vf=mc.vfmax; warn.push({t:"soft",m:`Vorschub auf Maschinenmaximum (${mc.vfmax} mm/min) begrenzt.`}); }
 
@@ -402,7 +393,7 @@ function compute(p){
 
   const vfR=Math.round(vf);
   const fzShown = isDrill ? 0 : (z>0 ? vfR/(n*z) : 0);
-  return { vc:vcEff, n:Math.round(n), fz:fzShown, f_u, vf:vfR, ap, ae, mrr:mrr/1000, pc, util, isDrill, isLight, zDepth, steps, drillTime, warn, rctf, vfPlunge:Math.round(vfPlunge), fzPlunge };
+  return { vc:vcEff, n:Math.round(n), fz:fzShown, f_u, vf:vfR, ap, ae, mrr:mrr/1000, pc, util, isDrill, isLight, zDepth, steps, drillTime, warn, vfPlunge:Math.round(vfPlunge), fzPlunge };
 }
 
 /* ---------- UI Setup ---------- */
@@ -410,7 +401,7 @@ function fill(sel,obj){ const e=document.getElementById(sel);
   e.innerHTML=Object.keys(obj).map(k=>`<option value="${k}">${obj[k].label}</option>`).join(""); }
 fill("machine",MACHINES); fill("tooltype",TOOLTYPE); fill("toolmat",TOOLMAT); fill("material",MATERIALS);
 
-const state={ machine:"sorotec", tooltype:"schaft", toolmat:"vhm_coat", z:2, d:6, material:"alu_knet", finish:false, mms:true, zAuto:true, ap:6, ae:2.4, thin:false, chamfer:1, drillDepth:10, peck:2 };
+const state={ machine:"sorotec", tooltype:"schaft", toolmat:"vhm_coat", z:2, d:6, material:"alu_knet", finish:false, mms:true, zAuto:true, ap:6, ae:2.4, chamfer:1, drillDepth:10, peck:2 };
 
 /* localStorage laden */
 try{ const s=JSON.parse(localStorage.getItem("schnittdaten_v1")); if(s) Object.assign(state,s); }catch(e){}
@@ -429,7 +420,6 @@ function syncInputs(){
   document.getElementById("autoZ").setAttribute("aria-pressed", state.zAuto?"true":"false");
   document.getElementById("ap").value=toField(state.ap);
   document.getElementById("ae").value=toField(state.ae);
-  document.getElementById("thinToggle").setAttribute("aria-pressed", state.thin?"true":"false");
   document.getElementById("chamfer").value=toField(state.chamfer);
   document.getElementById("ddepth").value=toField(state.drillDepth);
   document.getElementById("peck").value=toField(state.peck);
@@ -457,7 +447,6 @@ function render(){
     ...state,
     apOverride: state.zAuto ? null : state.ap,
     aeOverride: state.zAuto ? null : state.ae,
-    thin: state.thin,
     chamfer: state.chamfer,
     drillDepth: state.drillDepth,
     peck: state.peck
@@ -563,10 +552,6 @@ $("ae").oninput=e=>{ const v=parseNum(e.target.value); state.ae=(isNaN(v)||v<0)?
 $("chamfer").oninput=e=>{ const v=parseNum(e.target.value); state.chamfer=(isNaN(v)||v<0)?0:Math.min(v,20); render(); };
 $("ddepth").oninput=e=>{ const v=parseNum(e.target.value); state.drillDepth=(isNaN(v)||v<0)?0:Math.min(v,500); render(); };
 $("peck").oninput=e=>{ const v=parseNum(e.target.value); state.peck=(isNaN(v)||v<0)?0:Math.min(v,500); render(); };
-const tt2=$("thinToggle");
-function toggleThin(){ state.thin=!state.thin; tt2.setAttribute("aria-pressed",state.thin?"true":"false"); render(); }
-tt2.onclick=toggleThin;
-tt2.onkeydown=e=>{ if(e.key===" "||e.key==="Enter"){e.preventDefault();toggleThin();} };
 
 syncInputs();
 render();
